@@ -14,6 +14,11 @@ if (!PROXYCURL_API_KEY) {
   process.exit(1);
 }
 
+// Root endpoint for status
+app.get('/', (req, res) => {
+  res.json({ status: 'Career Prep Backend is running', endpoint: 'POST /fetch-job' });
+});
+
 app.post('/fetch-job', async (req, res) => {
   try {
     const { url } = req.body;
