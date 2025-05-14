@@ -1,0 +1,220 @@
+#!/bin/bash
+
+# Create the main project directory
+# mkdir -p job-recommendation-platform
+# cd job-recommendation-platform
+
+# Create frontend directory structure
+mkdir -p frontend/app/{api,components,hooks,lib,pages,styles}
+mkdir -p frontend/public
+touch frontend/package.json
+
+# Create backend directory structure
+mkdir -p backend/app/{api,core,models,schemas,services}
+mkdir -p backend/{scripts,tests}
+touch backend/app/main.py
+touch backend/requirements.txt
+
+# Create docker directory structure
+mkdir -p docker/{frontend,backend}
+touch docker/frontend/Dockerfile
+touch docker/backend/Dockerfile
+
+# Create root files
+touch .gitignore
+touch docker-compose.yml
+touch README.md
+
+# Add basic content to README.md
+cat <<EOL > README.md
+# Job Recommendation Platform
+
+A full-stack application for AI-powered job recommendations, resume parsing, career guidance chatbot, and hiring trend analytics.
+
+## Directory Structure
+- **frontend/**: Next.js frontend with React and TailwindCSS
+- **backend/**: FastAPI backend with ML and NLP services
+- **docker/**: Docker configurations for frontend and backend
+- **docker-compose.yml**: Local development setup
+- **.gitignore**: Git ignore rules
+
+## Setup
+1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) on your system.
+2. Navigate to \`frontend/\` and run \`npm install\` to set up dependencies (optional for local dev).
+3. Navigate to \`backend/\` and run \`pip install -r requirements.txt\` (optional for local dev).
+4. Run \`docker-compose up --build\` to build and start the services, including MongoDB.
+5. Access the frontend at \`http://localhost:3000\` and the backend at \`http://localhost:8000\`.
+
+## Tech Stack
+- **Frontend**: Next.js, React, TailwindCSS
+- **Backend**: FastAPI, Python
+- **Database**: MongoDB
+- **AI/ML**: scikit-learn, spaCy, TensorFlow
+- **Hosting**: Docker, AWS, Vercel
+
+## Docker Deployment
+- Build images: \`docker-compose build\`
+- Run containers: \`docker-compose up\`
+- Stop containers: \`docker-compose down\`
+EOL
+
+# Add basic .gitignore content
+cat <<EOL > .gitignore
+# Node.js
+node_modules/
+npm-debug.log
+.next/
+.env.local
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+*.egg-info/
+
+# Docker
+*.log
+
+# Environment variables
+.env
+*.env
+
+# IDE
+.vscode/
+.idea/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+EOL
+
+# Add MongoDB-specific docker-compose.yml
+cat <<EOL > docker-compose.yml
+version: '3.8'
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/frontend/Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+    environment:
+      - NODE_ENV=development
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ../docker/backend/Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+      - MONGODB_URI=mongodb://mongo:27017/job_db
+    depends_on:
+      - mongo
+
+  mongo:
+    image: mongo:6
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=job_db
+
+volumes:
+  mongo_data:
+EOL
+
+# Add frontend Dockerfile
+cat <<EOL > docker/frontend/Dockerfile
+# Use Node.js LTS version
+FROM node:18
+
+# Set working directory
+WORKDIR /app
+
+# Copy package.json and install dependencies
+COPY package.json .
+RUN npm install
+
+# Copy the rest of the frontend code
+COPY . .
+
+# Build the Next.js app
+RUN npm run build
+
+# Expose port
+EXPOSE 3000
+
+# Start the app
+CMD ["npm", "start"]
+EOL
+
+# Add backend Dockerfile
+cat <<EOL > docker/backend/Dockerfile
+# Use Python 3.10
+FROM python:3.10-slim
+
+# Set working directory
+WORKDIR /app
+
+# Copy requirements.txt and install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the rest of the backend code
+COPY . .
+
+# Expose port
+EXPOSE 8000
+
+# Start the FastAPI app with uvicorn
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+EOL
+
+# Add basic requirements.txt for backend
+cat <<EOL > backend/requirements.txt
+fastapi==0.115.0
+uvicorn==0.30.6
+pymongo==4.8.0
+scikit-learn==1.5.2
+spacy==3.7.6
+pandas==2.2.3
+numpy==1.26.4
+matplotlib==3.9.2
+EOL
+
+# Add basic package.json for frontend
+cat <<EOL > frontend/package.json
+{
+  "name": "job-recommendation-frontend",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "^14.2.13",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "axios": "^1.8.0",
+    "tailwindcss": "^3.4.13"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.4",
+    "@types/react": "^18.3.8"
+  }
+}
+EOL
+
+echo "Project directory structure with Docker and MongoDB created successfully!"
