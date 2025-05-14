@@ -1,21 +1,38 @@
 version: '3.8'
 services:
-  backend:
-    build: ./backend
-    ports:
-      - "3001:3001"
-    env_file:
-      - ./backend/.env
-    networks:
-      - app-network
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: ../docker/frontend/Dockerfile
     ports:
       - "3000:3000"
+    volumes:
+      - ./frontend:/app
+    environment:
+      - NODE_ENV=development
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ../docker/backend/Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+      - MONGODB_URI=mongodb://mongo:27017/job_db
     depends_on:
-      - backend
-    networks:
-      - app-network
-networks:
-  app-network:
-    driver: bridge
+      - mongo
+
+  mongo:
+    image: mongo:6
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=job_db
+
+volumes:
+  mongo_data:

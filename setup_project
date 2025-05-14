@@ -1,32 +1,38 @@
 #!/bin/bash
 
+set -e  # Exit on any error
+set -x  # Enable debugging output
+
 # Create the main project directory
-# mkdir -p job-recommendation-platform
-# cd job-recommendation-platform
+mkdir -p job-recommendation-platform || { echo "Failed to create job-recommendation-platform"; exit 1; }
+cd job-recommendation-platform || { echo "Failed to cd into job-recommendation-platform"; exit 1; }
+
+# Backup existing files
+BACKUP_DIR=".backup_$(date +%Y%m%d_%H%M%S)"
+mkdir -p "$BACKUP_DIR"
+for file in .gitignore docker-compose.yml README.md frontend/package.json frontend/app/pages/index.jsx frontend/app/pages/results.jsx backend/app/main.py backend/requirements.txt backend/app/api/jobs.py backend/app/services/recommendation.py docker/frontend/Dockerfile docker/backend/Dockerfile; do
+  if [ -f "$file" ]; then
+    cp "$file" "$BACKUP_DIR/" || { echo "Failed to backup $file"; exit 1; }
+    echo "Backed up $file to $BACKUP_DIR"
+  fi
+done
 
 # Create frontend directory structure
-mkdir -p frontend/app/{api,components,hooks,lib,pages,styles}
-mkdir -p frontend/public
-touch frontend/package.json
+mkdir -p frontend/app/{api,components,hooks,lib,pages,styles} || { echo "Failed to create frontend directories"; exit 1; }
+mkdir -p frontend/public || { echo "Failed to create frontend/public"; exit 1; }
 
 # Create backend directory structure
-mkdir -p backend/app/{api,core,models,schemas,services}
-mkdir -p backend/{scripts,tests}
-touch backend/app/main.py
-touch backend/requirements.txt
+mkdir -p backend/app/{api,core,models,schemas,services} || { echo "Failed to create backend/app directories"; exit 1; }
+mkdir -p backend/{scripts,tests} || { echo "Failed to create backend scripts/tests directories"; exit 1; }
 
 # Create docker directory structure
-mkdir -p docker/{frontend,backend}
-touch docker/frontend/Dockerfile
-touch docker/backend/Dockerfile
+mkdir -p docker/{frontend,backend} || { echo "Failed to create docker directories"; exit 1; }
 
-# Create root files
-touch .gitignore
-touch docker-compose.yml
-touch README.md
+# Create files only if they don't exist
+touch .gitignore docker-compose.yml README.md frontend/package.json frontend/app/pages/index.jsx frontend/app/pages/results.jsx backend/app/main.py backend/requirements.txt backend/app/api/jobs.py backend/app/services/recommendation.py docker/frontend/Dockerfile docker/backend/Dockerfile || { echo "Failed to create files"; exit 1; }
 
-# Add basic content to README.md
-cat <<EOL > README.md
+# Add content to files only if they are empty or don't exist
+[ ! -s README.md ] && cat <<EOL > README.md || echo "Skipping README.md (already exists)"
 # Job Recommendation Platform
 
 A full-stack application for AI-powered job recommendations, resume parsing, career guidance chatbot, and hiring trend analytics.
@@ -39,8 +45,10 @@ A full-stack application for AI-powered job recommendations, resume parsing, car
 - **.gitignore**: Git ignore rules
 
 ## Setup
-1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) on your system.
-2. Navigate to \`frontend/\` and run \`npm install\` to set up dependencies (optional for local dev).
+1. Install Docker and Docker Compose on Ubuntu:
+   - \`sudo apt update && sudo apt install docker.io docker-compose\`
+   - \`sudo usermod -aG docker \$USER\` (then log out and back in)
+2. Navigate to \`frontend/\` and run \`npm install\` (optional for local dev).
 3. Navigate to \`backend/\` and run \`pip install -r requirements.txt\` (optional for local dev).
 4. Run \`docker-compose up --build\` to build and start the services, including MongoDB.
 5. Access the frontend at \`http://localhost:3000\` and the backend at \`http://localhost:8000\`.
@@ -58,8 +66,7 @@ A full-stack application for AI-powered job recommendations, resume parsing, car
 - Stop containers: \`docker-compose down\`
 EOL
 
-# Add basic .gitignore content
-cat <<EOL > .gitignore
+[ ! -s .gitignore ] && cat <<EOL > .gitignore || echo "Skipping .gitignore (already exists)"
 # Node.js
 node_modules/
 npm-debug.log
@@ -92,8 +99,7 @@ venv/
 Thumbs.db
 EOL
 
-# Add MongoDB-specific docker-compose.yml
-cat <<EOL > docker-compose.yml
+[ ! -s docker-compose.yml ] && cat <<EOL > docker-compose.yml || echo "Skipping docker-compose.yml (already exists)"
 version: '3.8'
 services:
   frontend:
@@ -134,8 +140,7 @@ volumes:
   mongo_data:
 EOL
 
-# Add frontend Dockerfile
-cat <<EOL > docker/frontend/Dockerfile
+[ ! -s docker/frontend/Dockerfile ] && cat <<EOL > docker/frontend/Dockerfile || echo "Skipping docker/frontend/Dockerfile (already exists)"
 # Use Node.js LTS version
 FROM node:18
 
@@ -156,11 +161,10 @@ RUN npm run build
 EXPOSE 3000
 
 # Start the app
-CMD ["npm", "start"]
+CMD ["npm", "run", "start"]
 EOL
 
-# Add backend Dockerfile
-cat <<EOL > docker/backend/Dockerfile
+[ ! -s docker/backend/Dockerfile ] && cat <<EOL > docker/backend/Dockerfile || echo "Skipping docker/backend/Dockerfile (already exists)"
 # Use Python 3.10
 FROM python:3.10-slim
 
@@ -181,8 +185,7 @@ EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 EOL
 
-# Add basic requirements.txt for backend
-cat <<EOL > backend/requirements.txt
+[ ! -s backend/requirements.txt ] && cat <<EOL > backend/requirements.txt || echo "Skipping backend/requirements.txt (already exists)"
 fastapi==0.115.0
 uvicorn==0.30.6
 pymongo==4.8.0
@@ -193,8 +196,9 @@ numpy==1.26.4
 matplotlib==3.9.2
 EOL
 
-# Add basic package.json for frontend
-cat <<EOL > frontend/package.json
+# Fix package.json (only if empty, invalid, or missing build script)
+if [ ! -s frontend/package.json ] || ! jq . frontend/package.json >/dev/null 2>&1 || ! jq '.scripts.build' frontend/package.json | grep -q "next build"; then
+  cat <<EOL > frontend/package.json || { echo "Failed to write frontend/package.json"; exit 1; }
 {
   "name": "job-recommendation-frontend",
   "version": "1.0.0",
@@ -207,14 +211,175 @@ cat <<EOL > frontend/package.json
     "next": "^14.2.13",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "axios": "^1.8.0",
+    "axios": "^1.7.7",
     "tailwindcss": "^3.4.13"
   },
   "devDependencies": {
     "@types/node": "^22.7.4",
-    "@types/react": "^18.3.8"
+    "@types/react": "^18.3.11"
   }
 }
 EOL
+else
+  echo "Skipping frontend/package.json (valid JSON with build script exists)"
+fi
+
+[ ! -s frontend/app/pages/index.jsx ] && cat <<EOL > frontend/app/pages/index.jsx || echo "Skipping frontend/app/pages/index.jsx (already exists)"
+import React, { useState } from 'react';
+import { useRouter } from 'next/router';
+import axios from 'axios';
+
+const HomePage = () => {
+  const [jobSearch, setJobSearch] = useState('');
+  const router = useRouter();
+
+  const handleSearch = async () => {
+    try {
+      const response = await axios.post('http://localhost:8000/api/jobs/search', { query: jobSearch });
+      router.push({
+        pathname: '/results',
+        query: { jobs: JSON.stringify(response.data.jobs) },
+      });
+    } catch (error) {
+      console.error('Search failed:', error);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center">
+      <h1 className="text-4xl font-bold mb-6">Job Recommendation Platform</h1>
+      <input
+        type="text"
+        value={jobSearch}
+        onChange={(e) => setJobSearch(e.target.value)}
+        placeholder="Enter job keywords..."
+        className="p-2 border rounded w-80 mb-4"
+      />
+      <button
+        onClick={handleSearch}
+        className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+      >
+        Search Jobs
+      </button>
+    </div>
+  );
+};
+
+export default HomePage;
+EOL
+
+[ ! -s frontend/app/pages/results.jsx ] && cat <<EOL > frontend/app/pages/results.jsx || echo "Skipping frontend/app/pages/results.jsx (already exists)"
+import React from 'react';
+import { useRouter } from 'next/router';
+
+const ResultsPage = () => {
+  const router = useRouter();
+  const { jobs } = router.query;
+  const jobList = jobs ? JSON.parse(jobs) : [];
+
+  return (
+    <div className="min-h-screen bg-gray-100 p-6">
+      <h1 className="text-3xl font-bold mb-6">Job Recommendations</h1>
+      {jobList.length > 0 ? (
+        <ul className="space-y-4">
+          {jobList.map((job) => (
+            <li key={job.id} className="p-4 bg-white rounded shadow">
+              <h2 className="text-xl font-semibold">{job.title}</h2>
+              <p>{job.description}</p>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p>No jobs found.</p>
+      )}
+    </div>
+  );
+};
+
+export default ResultsPage;
+EOL
+
+[ ! -s backend/app/main.py ] && cat <<EOL > backend/app/main.py || echo "Skipping backend/app/main.py (already exists)"
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from app.api import jobs
+
+app = FastAPI(title="Job Recommendation API")
+
+# CORS setup
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Include routers
+app.include_router(jobs.router, prefix="/api/jobs", tags=["Jobs"])
+
+@app.get("/")
+async def root():
+    return {"message": "Welcome to the Job Recommendation API"}
+EOL
+
+[ ! -s backend/app/api/jobs.py ] && cat <<EOL > backend/app/api/jobs.py || echo "Skipping backend/app/api/jobs.py (already exists)"
+from fastapi import APIRouter
+from pydantic import BaseModel
+from app.services.recommendation import JobRecommender
+
+router = APIRouter()
+
+class JobSearchQuery(BaseModel):
+    query: str
+
+@router.post("/search")
+async def search_jobs(query: JobSearchQuery):
+    recommender = JobRecommender()
+    jobs = recommender.get_recommendations(query.query)
+    return {"jobs": jobs}
+EOL
+
+[ ! -s backend/app/services/recommendation.py ] && cat <<EOL > backend/app/services/recommendation.py || echo "Skipping backend/app/services/recommendation.py (already exists)"
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+import pandas as pd
+from pymongo import MongoClient
+import os
+
+class JobRecommender:
+    def __init__(self):
+        # Connect to MongoDB
+        client = MongoClient(os.getenv("MONGODB_URI", "mongodb://mongo:27017/job_db"))
+        db = client["job_db"]
+        self.jobs_collection = db["jobs"]
+        
+        # Mock data if collection is empty (replace with real data in production)
+        if self.jobs_collection.count_documents({}) == 0:
+            self.jobs_collection.insert_many([
+                {"id": 1, "title": "Software Engineer", "description": "Develop web applications using Python and React"},
+                {"id": 2, "title": "Data Scientist", "description": "Analyze data and build ML models"},
+            ])
+        
+        # Load jobs into DataFrame
+        self.jobs = pd.DataFrame(list(self.jobs_collection.find({}, {"_id": 0})))
+        self.vectorizer = TfidfVectorizer()
+
+    def get_recommendations(self, query: str, top_n: int = 5):
+        # Vectorize job descriptions and query
+        job_texts = self.jobs["description"].tolist()
+        vectors = self.vectorizer.fit_transform(job_texts + [query])
+        
+        # Calculate similarity
+        similarity_scores = cosine_similarity(vectors[-1], vectors[:-1]).flatten()
+        top_indices = similarity_scores.argsort()[-top_n:][::-1]
+        
+        # Return top jobs
+        return self.jobs.iloc[top_indices][["id", "title", "description"]].to_dict(orient="records")
+EOL
+
+# Verify all files were created or exist
+echo "Verifying created files..."
+find . -type f || { echo "Failed to verify files"; exit 1; }
 
 echo "Project directory structure with Docker and MongoDB created successfully!"
